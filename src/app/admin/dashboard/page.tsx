@@ -44,10 +44,16 @@ export default function Dashboard() {
   const [editFollowUp, setEditFollowUp] = useState("");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+ useEffect(() => {
     fetchLeads();
-  }, []);
 
+    const interval = setInterval(() => {
+      fetchLeads();
+    }, 15000); // refresh every 15 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+  
   async function fetchLeads() {
     setLoading(true);
     const { data } = await supabase
