@@ -13,7 +13,7 @@ export default function ContactCTA() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const isValid = name.trim() !== "" && phone.trim().length >= 10;
+  const isValid = name.trim() !== "" && phone.trim().length >= 10 && email.trim() !== "" && email.includes("@");
 
   async function handleSubmit() {
     setSubmitting(true);
@@ -147,7 +147,7 @@ export default function ContactCTA() {
                   />
                   <input
                     type="email"
-                    placeholder="Email (optional)"
+                    placeholder="Email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     style={{ padding: 10, borderRadius: 10, border: "1px solid #cbd5e1" }}

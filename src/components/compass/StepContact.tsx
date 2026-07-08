@@ -11,7 +11,7 @@ export default function StepContact({ onComplete }: StepContactProps) {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
 
-  const isValid = name.trim() !== "" && phone.trim().length >= 10;
+  const isValid = name.trim() !== "" && phone.trim().length >= 10 && email.trim() !== "" && email.includes("@");
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -53,7 +53,7 @@ export default function StepContact({ onComplete }: StepContactProps) {
 
         <div>
           <label className="mb-2 block text-sm font-semibold text-slate-700">
-            Email (optional)
+            Email
           </label>
           <input
             type="email"
