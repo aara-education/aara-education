@@ -44,16 +44,16 @@ export default function Dashboard() {
   const [editFollowUp, setEditFollowUp] = useState("");
   const [loading, setLoading] = useState(true);
 
- useEffect(() => {
+  useEffect(() => {
     fetchLeads();
 
     const interval = setInterval(() => {
       fetchLeads();
-    }, 15000); // refresh every 15 seconds
+    }, 15000);
 
     return () => clearInterval(interval);
   }, []);
-  
+
   async function fetchLeads() {
     setLoading(true);
     const { data } = await supabase
@@ -95,6 +95,22 @@ export default function Dashboard() {
     router.push("/admin/login");
   }
 
+  function whatsappLink(phone: string, name: string) {
+    const cleanPhone = phone.replace(/\D/g, "");
+    const message = encodeURIComponent(
+      `Hi ${name}, this is from Aara Education. We'd love to help you with your career and college guidance!`
+    );
+    return `https://wa.me/91${cleanPhone}?text=${message}`;
+  }
+
+  function emailLink(email: string, name: string) {
+    const subject = encodeURIComponent("Aara Education - Career Guidance");
+    const body = encodeURIComponent(
+      `Hi ${name},\n\nThank you for your interest in Aara Education. We'd love to help you with your career and college guidance.\n\nBest regards,\nAara Education Team`
+    );
+    return `https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${subject}&body=${body}`;
+  }
+
   const today = new Date().toISOString().split("T")[0];
   const followUpsToday = leads.filter((l) => l.follow_up_date === today);
   const newLeads = leads.filter((l) => l.stage === "New Lead").length;
@@ -110,7 +126,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
       <div className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 px-6 py-6 text-white shadow-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <div>
@@ -127,7 +142,6 @@ export default function Dashboard() {
       </div>
 
       <div className="mx-auto max-w-7xl px-6 py-8">
-        {/* Stat cards */}
         <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
           <div className="rounded-2xl border bg-white p-5 shadow-sm">
             <p className="text-sm font-medium text-slate-500">Total Leads</p>
@@ -147,11 +161,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Follow-ups banner */}
         {followUpsToday.length > 0 && (
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
             <p className="font-bold text-amber-800">
-              📞 {followUpsToday.length} follow-up{followUpsToday.length > 1 ? "s" : ""} due today
+              {followUpsToday.length} follow-up{followUpsToday.length > 1 ? "s" : ""} due today
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {followUpsToday.map((l) => (
@@ -160,14 +173,13 @@ export default function Dashboard() {
                   onClick={() => openLead(l)}
                   className="rounded-full bg-white px-3 py-1 text-sm font-medium text-amber-800 shadow-sm hover:bg-amber-100"
                 >
-                  {l.name} · {l.phone}
+                  {l.name} - {l.phone}
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Search & filter */}
         <div className="mb-5 flex flex-col gap-3 sm:flex-row">
           <input
             placeholder="Search by name or phone..."
@@ -187,7 +199,6 @@ export default function Dashboard() {
           </select>
         </div>
 
-        {/* Table */}
         <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -228,13 +239,43 @@ export default function Dashboard() {
                     className="cursor-pointer border-b last:border-0 hover:bg-emerald-50/50"
                   >
                     <td className="px-4 py-3 font-medium text-slate-900">{lead.name}</td>
-                    <td className="px-4 py-3">{lead.phone}</td>
-                    <td className="px-4 py-3">{lead.email || "—"}</td>
-                    <td className="px-4 py-3">{lead.interested_course || "—"}</td>
-                    <td className="px-4 py-3">{lead.tenth_marks || "—"}</td>
-                    <td className="px-4 py-3">{lead.twelfth_marks || "—"}</td>
-                    <td className="px-4 py-3">{lead.location || "—"}</td>
-                    <td className="px-4 py-3">{lead.budget || "—"}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span>{lead.phone}</span>
+                        
+                          <a href={whatsappLink(lead.phone, lead.name)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-200"
+                        >
+                          WA
+                        </a>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {lead.email ? (
+                        <div className="flex items-center gap-2">
+                          <span>{lead.email}</span>
+                          
+                           <a href={emailLink(lead.email, lead.name)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-200"
+                          >
+                            Mail
+                          </a>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="px-4 py-3">{lead.interested_course || "-"}</td>
+                    <td className="px-4 py-3">{lead.tenth_marks || "-"}</td>
+                    <td className="px-4 py-3">{lead.twelfth_marks || "-"}</td>
+                    <td className="px-4 py-3">{lead.location || "-"}</td>
+                    <td className="px-4 py-3">{lead.budget || "-"}</td>
                     <td className="px-4 py-3 capitalize">{lead.source?.replace("_", " ")}</td>
                     <td className="px-4 py-3">
                       <span
@@ -243,7 +284,7 @@ export default function Dashboard() {
                         {lead.stage}
                       </span>
                     </td>
-                    <td className="px-4 py-3">{lead.follow_up_date || "—"}</td>
+                    <td className="px-4 py-3">{lead.follow_up_date || "-"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -252,7 +293,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Edit panel */}
       {selectedLead && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
           <div className="h-full w-full max-w-md overflow-y-auto bg-white p-6 shadow-2xl">
@@ -260,24 +300,44 @@ export default function Dashboard() {
               <div>
                 <h2 className="text-xl font-black text-slate-900">{selectedLead.name}</h2>
                 <p className="text-sm text-slate-500">
-                  {selectedLead.phone} · {selectedLead.email || "no email"}
+                  {selectedLead.phone} - {selectedLead.email || "no email"}
                 </p>
+                <div className="mt-2 flex gap-2">
+                  
+                   <a href={whatsappLink(selectedLead.phone, selectedLead.name)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700"
+                  >
+                    WhatsApp
+                  </a>
+                  {selectedLead.email && (
+                    
+                      <a href={emailLink(selectedLead.email, selectedLead.name)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                      Email
+                    </a>
+                  )}
+                </div>
               </div>
               <button
                 onClick={() => setSelectedLead(null)}
                 className="rounded-lg px-3 py-1.5 text-slate-500 hover:bg-slate-100"
               >
-                ✕
+                Close
               </button>
             </div>
 
             <div className="mb-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4 text-sm">
-              <div><span className="text-slate-500">Course:</span> {selectedLead.interested_course || "—"}</div>
+              <div><span className="text-slate-500">Course:</span> {selectedLead.interested_course || "-"}</div>
               <div><span className="text-slate-500">Source:</span> {selectedLead.source?.replace("_", " ")}</div>
-              <div><span className="text-slate-500">10th:</span> {selectedLead.tenth_marks || "—"}</div>
-              <div><span className="text-slate-500">12th:</span> {selectedLead.twelfth_marks || "—"}</div>
-              <div><span className="text-slate-500">Location:</span> {selectedLead.location || "—"}</div>
-              <div><span className="text-slate-500">Budget:</span> {selectedLead.budget || "—"}</div>
+              <div><span className="text-slate-500">10th:</span> {selectedLead.tenth_marks || "-"}</div>
+              <div><span className="text-slate-500">12th:</span> {selectedLead.twelfth_marks || "-"}</div>
+              <div><span className="text-slate-500">Location:</span> {selectedLead.location || "-"}</div>
+              <div><span className="text-slate-500">Budget:</span> {selectedLead.budget || "-"}</div>
             </div>
 
             <div className="mb-4">
