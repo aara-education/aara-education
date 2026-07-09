@@ -94,6 +94,34 @@ export default function Dashboard() {
     await fetch("/api/admin-logout", { method: "POST" });
     router.push("/admin/login");
   }
+  
+  function exportToCSV() {
+    const headers = [
+      "Name", "Phone", "Email", "Course Interest", "10th %", "12th %",
+      "Location", "Budget", "Source", "Stage", "Follow-up Date", "Notes", "Created"
+    ];
+
+    const rows = filtered.map((l) => [
+      l.name, l.phone, l.email, l.interested_course, l.tenth_marks,
+      l.twelfth_marks, l.location, l.budget, l.source, l.stage,
+      l.follow_up_date || "", l.notes || "", new Date(l.created_at).toLocaleDateString()
+    ]);
+
+    const escapeCell = (cell: string) => `"${(cell || "").toString().replace(/"/g, '""')}"`;
+
+    const csvContent =
+      [headers, ...rows]
+        .map((row) => row.map(escapeCell).join(","))
+        .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `aara-leads-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   function whatsappLink(phone: string, name: string) {
     const cleanPhone = phone.replace(/\D/g, "");
@@ -197,6 +225,12 @@ export default function Dashboard() {
               <option key={stage}>{stage}</option>
             ))}
           </select>
+          <button
+            onClick={exportToCSV}
+            className="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900"
+          >
+            Export CSV
+          </button>
         </div>
 
         <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
