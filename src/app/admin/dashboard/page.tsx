@@ -16,6 +16,8 @@ const STAGE_COLORS: Record<string, string> = {
   "Lost": "bg-red-100 text-red-700",
 };
 
+const ALL_STAGES = Object.keys(STAGE_COLORS);
+
 interface Lead {
   id: string;
   name: string;
@@ -31,27 +33,43 @@ interface Lead {
   stage: string;
   follow_up_date: string | null;
   created_at: string;
+  last_edited_by: string | null;
 }
 
 export default function Dashboard() {
   const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [filterStage, setFilterStage] = useState("All");
+  const [filterStages, setFilterStages] = useState<string[]>([]);
+  const [showStageFilter, setShowStageFilter] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [editStage, setEditStage] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editFollowUp, setEditFollowUp] = useState("");
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState("");
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
 
   useEffect(() => {
     fetchLeads();
-
     const interval = setInterval(() => {
       fetchLeads();
     }, 15000);
-
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/admin-me")
+      .then((res) => res.json())
+      .then((data) => setCurrentUser(data.username || ""));
   }, []);
 
   async function fetchLeads() {
@@ -79,9 +97,9 @@ export default function Dashboard() {
         stage: editStage,
         notes: editNotes,
         follow_up_date: editFollowUp || null,
+        last_edited_by: currentUser,
       })
       .eq("id", selectedLead.id);
-
     if (!error) {
       setSelectedLead(null);
       fetchLeads();
@@ -91,29 +109,56 @@ export default function Dashboard() {
   }
 
   async function handleLogout() {
+    const confirmed = window.confirm("Are you sure you want to log out?");
+    if (!confirmed) return;
     await fetch("/api/admin-logout", { method: "POST" });
     router.push("/admin/login");
   }
-  
+
+  function toggleStageFilter(stage: string) {
+    setFilterStages((prev) =>
+      prev.includes(stage) ? prev.filter((s) => s !== stage) : [...prev, stage]
+    );
+  }
+
+  async function handleChangePassword() {
+    setPasswordMessage("");
+    setPasswordSuccess(false);
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage("New passwords do not match.");
+      return;
+    }
+    const res = await fetch("/api/admin-change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setPasswordSuccess(true);
+      setPasswordMessage("Password changed successfully.");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      alert("Password changed successfully!");
+      setShowChangePassword(false);
+    } else {
+      setPasswordMessage(data.error || "Something went wrong.");
+    }
+  }
+
   function exportToCSV() {
     const headers = [
       "Name", "Phone", "Email", "Course Interest", "10th %", "12th %",
-      "Location", "Budget", "Source", "Stage", "Follow-up Date", "Notes", "Created"
+      "Location", "Budget", "Source", "Stage", "Follow-up Date", "Notes", "Last Edited By", "Created"
     ];
-
     const rows = filtered.map((l) => [
       l.name, l.phone, l.email, l.interested_course, l.tenth_marks,
       l.twelfth_marks, l.location, l.budget, l.source, l.stage,
-      l.follow_up_date || "", l.notes || "", new Date(l.created_at).toLocaleDateString()
+      l.follow_up_date || "", l.notes || "", l.last_edited_by || "", new Date(l.created_at).toLocaleDateString()
     ]);
-
     const escapeCell = (cell: string) => `"${(cell || "").toString().replace(/"/g, '""')}"`;
-
-    const csvContent =
-      [headers, ...rows]
-        .map((row) => row.map(escapeCell).join(","))
-        .join("\n");
-
+    const csvContent = [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -145,7 +190,7 @@ export default function Dashboard() {
   const admitted = leads.filter((l) => l.stage === "Admitted").length;
 
   const filtered = leads.filter((l) => {
-    const matchesStage = filterStage === "All" || l.stage === filterStage;
+    const matchesStage = filterStages.length === 0 || filterStages.includes(l.stage);
     const matchesSearch =
       l.name?.toLowerCase().includes(search.toLowerCase()) ||
       l.phone?.includes(search);
@@ -160,12 +205,23 @@ export default function Dashboard() {
             <h1 className="text-2xl font-black tracking-tight">Aara Education</h1>
             <p className="text-sm text-emerald-50">Leads &amp; Admissions Dashboard</p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold hover:bg-white/30"
-          >
-            Log Out
-          </button>
+          <div className="flex items-center gap-3">
+            {currentUser && (
+              <span className="text-sm text-emerald-50">Logged in as {currentUser}</span>
+            )}
+            <button
+              onClick={() => setShowChangePassword(true)}
+              className="rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold hover:bg-white/30"
+            >
+              Change Password
+            </button>
+            <button
+              onClick={handleLogout}
+              className="rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold hover:bg-white/30"
+            >
+              Log Out
+            </button>
+          </div>
         </div>
       </div>
 
@@ -215,16 +271,36 @@ export default function Dashboard() {
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 focus:border-emerald-500 focus:outline-none"
           />
-          <select
-            value={filterStage}
-            onChange={(e) => setFilterStage(e.target.value)}
-            className="rounded-xl border border-slate-300 px-4 py-2.5 focus:border-emerald-500 focus:outline-none"
-          >
-            <option>All</option>
-            {Object.keys(STAGE_COLORS).map((stage) => (
-              <option key={stage}>{stage}</option>
-            ))}
-          </select>
+
+          <div className="relative">
+            <button
+              onClick={() => setShowStageFilter(!showStageFilter)}
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium hover:bg-slate-50"
+            >
+              Stage {filterStages.length > 0 ? `(${filterStages.length})` : "(All)"}
+            </button>
+            {showStageFilter && (
+              <div className="absolute z-10 mt-2 w-56 rounded-xl border bg-white p-3 shadow-lg">
+                <button
+                  onClick={() => setFilterStages([])}
+                  className="mb-2 text-xs font-semibold text-emerald-600 hover:underline"
+                >
+                  Clear all (show All)
+                </button>
+                {ALL_STAGES.map((stage) => (
+                  <label key={stage} className="flex items-center gap-2 py-1 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={filterStages.includes(stage)}
+                      onChange={() => toggleStageFilter(stage)}
+                    />
+                    {stage}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button
             onClick={exportToCSV}
             className="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900"
@@ -249,19 +325,20 @@ export default function Dashboard() {
                   <th className="px-4 py-3 font-semibold">Source</th>
                   <th className="px-4 py-3 font-semibold">Stage</th>
                   <th className="px-4 py-3 font-semibold">Follow-up</th>
+                  <th className="px-4 py-3 font-semibold">Last Edited By</th>
                 </tr>
               </thead>
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-slate-400">
+                    <td colSpan={12} className="px-4 py-8 text-center text-slate-400">
                       Loading leads...
                     </td>
                   </tr>
                 )}
                 {!loading && filtered.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-slate-400">
+                    <td colSpan={12} className="px-4 py-8 text-center text-slate-400">
                       No leads found.
                     </td>
                   </tr>
@@ -276,8 +353,7 @@ export default function Dashboard() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <span>{lead.phone}</span>
-                        
-                          <a href={whatsappLink(lead.phone, lead.name)}
+                        <a href={whatsappLink(lead.phone, lead.name)}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
@@ -291,8 +367,7 @@ export default function Dashboard() {
                       {lead.email ? (
                         <div className="flex items-center gap-2">
                           <span>{lead.email}</span>
-                          
-                           <a href={emailLink(lead.email, lead.name)}
+                          <a href={emailLink(lead.email, lead.name)}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
@@ -319,6 +394,7 @@ export default function Dashboard() {
                       </span>
                     </td>
                     <td className="px-4 py-3">{lead.follow_up_date || "-"}</td>
+                    <td className="px-4 py-3 text-slate-500">{lead.last_edited_by || "-"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -336,9 +412,13 @@ export default function Dashboard() {
                 <p className="text-sm text-slate-500">
                   {selectedLead.phone} - {selectedLead.email || "no email"}
                 </p>
+                {selectedLead.last_edited_by && (
+                  <p className="mt-1 text-xs text-slate-400">
+                    Last edited by {selectedLead.last_edited_by}
+                  </p>
+                )}
                 <div className="mt-2 flex gap-2">
-                  
-                   <a href={whatsappLink(selectedLead.phone, selectedLead.name)}
+                  <a href={whatsappLink(selectedLead.phone, selectedLead.name)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700"
@@ -346,8 +426,7 @@ export default function Dashboard() {
                     WhatsApp
                   </a>
                   {selectedLead.email && (
-                    
-                      <a href={emailLink(selectedLead.email, selectedLead.name)}
+                    <a href={emailLink(selectedLead.email, selectedLead.name)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700"
@@ -381,7 +460,7 @@ export default function Dashboard() {
                 onChange={(e) => setEditStage(e.target.value)}
                 className="w-full rounded-xl border border-slate-300 px-3 py-2.5 focus:border-emerald-500 focus:outline-none"
               >
-                {Object.keys(STAGE_COLORS).map((stage) => (
+                {ALL_STAGES.map((stage) => (
                   <option key={stage}>{stage}</option>
                 ))}
               </select>
@@ -412,6 +491,92 @@ export default function Dashboard() {
               className="w-full rounded-xl bg-emerald-600 py-3 font-bold text-white hover:bg-emerald-700"
             >
               Save Changes
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showChangePassword && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-black text-slate-900">Change Password</h2>
+              <button
+                onClick={() => {
+                  setShowChangePassword(false);
+                  setPasswordMessage("");
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setConfirmPassword("");
+                }}
+                className="text-slate-500 hover:text-slate-700"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="relative">
+                <input
+                  type={showCurrentPw ? "text" : "password"}
+                  placeholder="Current password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 pr-16 focus:border-emerald-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPw(!showCurrentPw)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 hover:bg-slate-200"
+                >
+                  {showCurrentPw ? "Hide" : "Show"}
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  type={showNewPw ? "text" : "password"}
+                  placeholder="New password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 pr-16 focus:border-emerald-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPw(!showNewPw)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 hover:bg-slate-200"
+                >
+                  {showNewPw ? "Hide" : "Show"}
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  type={showConfirmPw ? "text" : "password"}
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 pr-16 focus:border-emerald-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPw(!showConfirmPw)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 hover:bg-slate-200"
+                >
+                  {showConfirmPw ? "Hide" : "Show"}
+                </button>
+              </div>
+            </div>
+
+            {passwordMessage && (
+              <p className={`mt-3 text-sm ${passwordSuccess ? "text-emerald-600" : "text-red-600"}`}>
+                {passwordMessage}
+              </p>
+            )}
+
+            <button
+              onClick={handleChangePassword}
+              className="mt-4 w-full rounded-xl bg-emerald-600 py-2.5 font-bold text-white hover:bg-emerald-700"
+            >
+              Update Password
             </button>
           </div>
         </div>
