@@ -13,7 +13,11 @@ export default function ContactCTA() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const isValid = name.trim() !== "" && phone.trim().length >= 10 && email.trim() !== "" && email.includes("@");
+  const [touched, setTouched] = useState(false);
+  const phoneValid = /^[6-9]\d{9}$/.test(phone.trim());
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const nameValid = name.trim().length >= 2;
+  const isValid = nameValid && phoneValid && emailValid;
 
   async function handleSubmit() {
     setSubmitting(true);
@@ -140,11 +144,14 @@ export default function ContactCTA() {
                   />
                   <input
                     type="tel"
-                    placeholder="Phone number"
+                    placeholder="10-digit mobile number"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                     style={{ padding: 10, borderRadius: 10, border: "1px solid #cbd5e1" }}
                   />
+                  {touched && !phoneValid && (
+                    <p style={{ color: "#dc2626", fontSize: 13, margin: 0 }}>Enter a valid 10-digit mobile number.</p>
+                  )}
                   <input
                     type="email"
                     placeholder="Email"
@@ -152,11 +159,17 @@ export default function ContactCTA() {
                     onChange={(e) => setEmail(e.target.value)}
                     style={{ padding: 10, borderRadius: 10, border: "1px solid #cbd5e1" }}
                   />
+                  {touched && !emailValid && (
+                    <p style={{ color: "#dc2626", fontSize: 13, margin: 0 }}>Enter a valid email address.</p>
+                  )}
                 </div>
 
                 <button
-                  disabled={!isValid || submitting}
-                  onClick={handleSubmit}
+                  disabled={submitting}
+                  onClick={() => {
+                    setTouched(true);
+                    if (isValid) handleSubmit();
+                  }}
                   style={{
                     marginTop: 20,
                     width: "100%",
